@@ -25,10 +25,7 @@ jobs:
         uses: quarto-dev/quarto-actions/setup@v2
         with:
           version: release
-
-      - name: Install dependencies
-        run: |
-          quarto install tinytex
+          tinytex: false
 
       - name: Build site
         run: quarto render
