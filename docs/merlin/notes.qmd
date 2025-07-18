@@ -1,0 +1,563 @@
+---
+title: "Notes on Genetic Maps for MERLIN (hg38)"
+---
+
+IN order to run merlin for my analysis, I needed to create a `.map` file for [MERLIN](https://csg.sph.umich.edu/abecasis/Merlin/)
+using **rsIDs**, **hg38 coordinates**, and **centimorgan (cM)** positions **without interpolation** whenever 
+possible. This guide includes comprehensive WGS VCF preprocessing steps.
+
+## Background
+
+### Reduced Penetrance in Mendelian Disorders
+
+Reduced penetrance (RP) represents one of the most challenging problems in human genetics. Many Mendelian disorders exhibit incomplete penetrance, where individuals carrying pathogenic mutations do not develop the disease phenotype. This phenomenon complicates genetic counseling, risk assessment, and therapeutic development.
+
+### Case Study: Heritable Pulmonary Arterial Hypertension (PAH)
+
+**Disease Context:**
+Heritable pulmonary arterial hypertension (HPAH) is a rare, life-threatening disorder characterized by elevated pulmonary arterial pressure leading to right heart failure. The disease exhibits significant genetic heterogeneity and reduced penetrance, making it an ideal model for studying modifier genes.
+
+**Genetic Architecture:**
+
+- **Primary mutations**: Most commonly in BMPR2 (bone morphogenetic protein receptor type 2)
+- **Inheritance pattern**: Autosomal dominant
+- **Penetrance**: Typically 20-40% (much lower than expected for dominant disorders)
+- **Age of onset**: Highly variable (5-75 years) with genetic anticipation
+
+**The Puigdevall et al. (2018) Study:**
+This landmark study analyzed a large Iberian family with 65 members spanning five generations, including 22 carriers of the pathogenic BMPR2 mutation c.1472G>A (p.Arg491Gln). Only 8 of these carriers developed PAH (36.4% penetrance), demonstrating the need to identify genetic modifiers.
+
+**Key Findings:**
+
+- Identified a candidate modifier region on chromosome 2q24.3 (38 Mb upstream from BMPR2)
+- Achieved significant linkage (LOD=4.09) under a PAH susceptibility model
+- Implicated FIGN (fidgetin) gene as a transcriptional modifier
+- Demonstrated the power of family-based linkage analysis for modifier discovery
+
+**Methodological Innovations:**
+
+- Used multiple linkage analysis software packages for validation
+- Implemented age-dependent penetrance modeling
+- Applied sophisticated pedigree pruning strategies
+- Integrated functional genomics for candidate gene prioritization
+
+### Implications for WGS-Based Studies
+
+The PAH study used exome array data (551,839 SNPs), but WGS provides several advantages:
+
+- **Higher variant density** (3-4M vs 551K variants)
+- **Genome-wide coverage** vs coding regions only
+- **Better rare variant detection** in regulatory regions
+- **Enhanced haplotype resolution** for fine-mapping
+
+However, WGS also presents challenges:
+- **Computational complexity** requiring robust filtering strategies
+- **LD management** with dense variant sets
+- **Quality control** for novel variants without population frequency data
+
+## Summary Recommendation
+
+**Use the Beagle GRCh38 genetic maps** for MERLIN:
+- Already include **rsIDs**
+- Aligned to **hg38 (GRCh38)**
+- Provide **direct cM values**
+- Require **no manual interpolation**
+- Supplied in **PLINK `.map` format**, which MERLIN accepts with slight formatting
+
+Download:
+[https://bochet.gcc.biostat.washington.edu/beagle/genetic_maps/plink.GRCh38.map.zip](https://bochet.gcc.biostat.washington.edu/beagle/genetic_maps/plink.GRCh38.map.zip)
+
+## WGS VCF Preprocessing Pipeline
+
+### Overview
+For WGS-derived VCFs, extensive preprocessing is required before MERLIN analysis. The pipeline includes:
+
+1. **VCF Merging & Normalization**
+2. **Variant Annotation & Filtering**
+3. **Quality Control & Mendelian Error Detection**
+4. **Format Conversion for MERLIN**
+
+### Step 1: VCF Merging and Normalization
+
+```bash
+# Merge individual VCFs into multi-sample VCF
+bcftools merge -m all --threads $N_THREADS -O z -o merged.vcf.gz -l vcf_list.txt
+
+# Normalize and decompose variants (splits multiallelic sites)
+bcftools norm -m- -w 10000 -f $REF_GENOME --threads $N_THREADS \
+    merged.vcf.gz -O z -o merged.norm.vcf.gz
+
+# Index normalized VCF
+tabix -p vcf merged.norm.vcf.gz --threads $N_THREADS
+```
+
+**Key considerations:**
+
+- `-m-`: Decompose multiallelic sites into biallelic records
+- `-w 10000`: Window size for normalization (adjust based on variant density)
+- Use GRCh38 reference genome for hg38 compatibility
+
+### Step 2: Variant Annotation
+
+```bash
+# Annotate with population databases (gnomAD, dbSNP)
+echtvar anno -e gnomad.v3.1.2.echtvar.v2.zip merged.norm.vcf.gz merged.annotated.vcf.gz
+
+# Inject rsIDs from INFO field into ID column if missing
+bcftools annotate --threads $N_THREADS --rename-info clinvar_RS,ID \
+    -O z -o merged.with_ids.vcf.gz merged.annotated.vcf.gz
+
+tabix -p vcf merged.with_ids.vcf.gz --threads $N_THREADS
+```
+
+**Annotation goals:**
+
+- Add population allele frequencies (gnomAD)
+- Ensure rsID presence for genetic map matching
+- Preserve variant quality metrics
+
+### Step 3: Quality Filtering
+
+```bash
+# Apply comprehensive filtering criteria
+bcftools view --threads $N_THREADS -m2 -M2 -v snps merged.with_ids.vcf.gz |
+    bcftools filter --threads $N_THREADS -e 'N_MISSING > 6' |           # Remove variants missing in >6 samples
+    bcftools view --threads $N_THREADS -e 'INFO/CSQ="."' |              # Remove variants lacking VEP annotations
+    bcftools view --threads $N_THREADS -e 'ID="."' |                    # Remove variants without rsIDs
+    bcftools view --threads $N_THREADS -i 'POS > 0' |                   # Remove variants with invalid positions
+    bgzip --threads $N_THREADS > final_filtered.vcf.gz
+
+tabix -p vcf final_filtered.vcf.gz --threads $N_THREADS
+```
+
+**Filtering rationale:**
+- **Biallelic SNPs only**: MERLIN works best with simple variant types
+- **Missing data threshold**: Balance between data retention and quality
+- **rsID requirement**: Essential for genetic map matching
+- **VEP annotations**: Ensures variant interpretation quality
+
+### Step 4: Chromosome Filtering
+
+```bash
+# Remove nonstandard chromosomes (keep only autosomes + X, Y)
+bcftools view --threads $N_THREADS \
+    -r chr1,chr2,chr3,chr4,chr5,chr6,chr7,chr8,chr9,chr10,chr11,chr12,chr13,chr14,chr15,chr16,chr17,chr18,chr19,chr20,chr21,chr22,chrX,chrY \
+    -Oz -o final_filtered.stdchr.vcf.gz final_filtered.vcf.gz
+
+tabix -p vcf final_filtered.stdchr.vcf.gz --threads $N_THREADS
+```
+
+### Step 5: PLINK Conversion and Quality Control
+
+```bash
+# Convert to PLINK format
+plink --vcf final_filtered.stdchr.vcf.gz --double-id --make-bed --out plink_data
+
+# Check for Mendelian errors
+plink --bfile plink_data --mendel --out mendel_errors
+
+# Identify variants with Mendelian errors
+awk '$6 > 0' mendel_errors.mendel | cut -f3 | sort | uniq > variants_with_errors.txt
+
+# Optional: Exclude Mendelian errors
+# plink --bfile plink_data --exclude variants_with_errors.txt --make-bed --out plink_no_mendel
+
+# Convert to PED/MAP format for MERLIN
+plink --bfile plink_data --recode --out plink_data
+```
+
+**Quality control considerations:**
+
+- **Mendelian error detection**: Critical for pedigree-based analysis
+- **Double-id flag**: Preserves original sample IDs
+- **Error threshold**: Balance between data quality and retention
+
+### Step 6: MERLIN Map File Creation
+
+```bash
+# Create MERLIN-format map file from PLINK .map
+awk '{print $2, $1, $4}' plink_data.map > merlin.map
+```
+
+**Format conversion:**
+
+- PLINK format: `CHR SNP_ID cM BP`
+- MERLIN format: `CHR SNP_ID cM` (physical position not needed)
+
+## Linkage Analysis Methodology
+
+### Case Study: Puigdevall et al. (2018) - Heritable PAH
+
+**Study Overview:**
+
+- **Family size**: 65 members spanning 5 generations
+- **Genotyping**: Illumina CoreExome-24 BeadChip (551,839 SNPs)
+- **Disease model**: Autosomal dominant with reduced penetrance (36.4%)
+- **Key finding**: Identified FIGN as genetic modifier with LOD=4.09
+
+### Exome vs WGS: Key Differences
+
+| Aspect | Exome (PAH Study) | WGS (Our Approach) |
+|--------|-------------------|-------------------|
+| **Variant density** | ~551K SNPs | ~3-4M SNPs |
+| **Coverage** | Coding regions only | Genome-wide |
+| **LD filtering** | Critical (33K → 33K SNPs) | Essential (dense LD) |
+| **Computational load** | Moderate | High |
+| **Power for rare variants** | Limited | Superior |
+
+### Quality Control Strategies
+
+#### Sample Quality Assessment
+```bash
+# Monitor genotyping call rates
+# PAH study threshold: <0.99 call rate → exclude
+# WGS equivalent: Monitor depth and quality metrics
+```
+
+#### Variant Filtering Criteria
+
+**PAH Study Filters (adapted for WGS):**
+
+- Biallelic SNPs only
+- Missing genotypes in ≤6 samples
+- Unambiguous dbSNP annotation
+- Valid genetic/physical positions
+- Population allele frequency data available
+
+**WGS Enhancements:**
+
+```bash
+# Additional WGS-specific filters
+bcftools filter -e 'QUAL < 30' |                    # Quality score threshold
+bcftools filter -e 'DP < 10' |                      # Depth threshold
+bcftools filter -e 'AF < 0.01 || AF > 0.999' |     # Allele frequency bounds
+```
+
+#### Chromosome X Handling
+
+**PAH Study Approach:**
+
+- Remove heterozygous genotypes in males
+- Use sex-specific genetic maps for PAR1 regions
+- Special handling for pseudoautosomal regions
+
+**WGS Implementation:**
+```bash
+# Filter chromosome X heterozygous calls in males
+plink --bfile plink_data --set-hh-missing --make-bed --out plink_chrX_filtered
+
+# Use sex-specific maps for X chromosome
+# Beagle maps include X chromosome with proper handling
+```
+
+### Linkage Analysis Strategy
+
+#### Pedigree Complexity Management
+
+**PAH Study Challenge:**
+- Original pedigree: 67 bits (exceeds MERLIN's 24-bit limit)
+- Solution: Pruned to maximize statistical power
+
+**WGS Considerations:**
+```bash
+# For complex pedigrees, consider:
+# 1. Pedigree pruning strategies
+# 2. Alternative software (Morgan, Superlink)
+# 3. Chunked analysis approaches
+```
+
+#### LD Filtering Strategy
+
+**PAH Study Method:**
+- Window size: 10 SNPs
+- Sliding window: 5 SNPs
+- VIF threshold: 2.0
+- Result: 551K → 33K SNPs
+
+**WGS Adaptation:**
+```bash
+# More aggressive LD filtering for WGS
+plink --bfile plink_data \
+    --indep-pairwise 50 5 0.2 \
+    --out ld_filtered
+
+plink --bfile plink_data \
+    --extract ld_filtered.prune.in \
+    --make-bed --out plink_ld_filtered
+```
+
+#### Susceptibility Model for Reduced Penetrance
+
+**PAH Study Model:**
+
+- Common allele frequency (d=0.999)
+- Recessive mode of inheritance
+- 2% phenocopy rate
+- Two-hit mechanism hypothesis
+
+**WGS Application:**
+```bash
+# Model specification for MERLIN
+# Consider age-dependent penetrance
+# Account for genetic anticipation effects
+```
+
+### Age-Dependent Penetrance Handling
+
+**PAH Study Challenge:**
+
+- Age of onset: 5-75 years
+- Large variability with genetic anticipation
+- Young carriers at risk of developing disease
+
+**WGS Implementation Strategy:**
+```bash
+# 1. Create liability classes based on age
+# 2. Run multiple analyses excluding young carriers
+# 3. Use general penetrance functions vs. liability classes
+
+# Example: Multiple pedigree combinations
+for age_threshold in 10 20 30 40; do
+    # Filter individuals by age
+    # Run linkage analysis
+    # Compare results across age groups
+done
+```
+
+### Functional Validation Approach
+
+**PAH Study Strategy:**
+
+1. **Linkage analysis** → Identify candidate regions
+2. **Functional genomics** → Characterize regions
+3. **Haplotype analysis** → Predict segregation
+4. **Expression studies** → Validate mechanism
+
+**WGS Enhancement Opportunities:**
+
+- **Deeper variant discovery** in candidate regions
+- **Rare variant analysis** in modifier genes
+- **Regulatory variant identification** in non-coding regions
+- **Haplotype reconstruction** with higher resolution
+
+## Genetic Map Integration
+
+### Beagle Map Format
+
+Each file (e.g., `plink.chr1.GRCh38.map`) is tab-delimited:
+
+```
+CHR    rsID       cM      bp
+1      rs112      0.25    10458
+1      rs119      0.55    10600
+```
+
+MERLIN requires just the first 3 columns:
+```text
+CHR    rsID    cM
+```
+
+To convert:
+```bash
+awk '{ print $1, $2, $3 }' plink.chr1.GRCh38.map > merlin.chr1.map
+```
+
+### Primary Approach: Direct rsID Matching
+
+1. **Extract rsIDs from filtered VCF:**
+   ```bash
+   bcftools query -f '%ID\n' final_filtered.stdchr.vcf.gz | grep -v '^\.$' > variant_rsids.txt
+   ```
+
+2. **Match with Beagle genetic map:**
+   ```bash
+   # For each chromosome
+   grep -f variant_rsids.txt plink.chr${CHR}.GRCh38.map > matched_chr${CHR}.map
+   ```
+
+3. **Create MERLIN map:**
+   ```bash
+   awk '{print $1, $2, $3}' matched_chr${CHR}.map > merlin_chr${CHR}.map
+   ```
+
+### Fallback: Interpolation for Missing Variants
+
+When rsIDs are not found in Beagle maps:
+
+```bash
+# Use SHAPEIT5 or Eagle maps for interpolation
+# Estimate cM from surrounding bp–cM pairs:
+cM = cM₁ + ((bp - bp₁) / (bp₂ - bp₁)) × (cM₂ - cM₁)
+```
+
+## MERLIN Documentation Summary
+
+MERLIN assumes input maps are already in **centimorgan (cM)** units.
+
+### What MERLIN Docs Cover
+
+- **Map file format**:
+  > "If you are using sex-average maps, this file has one line per marker with three columns, indicating chromosome, marker name and position (in centiMorgans)" — `input_files.qmd`
+
+- **Sex-specific maps**: optional columns for male and female cM positions
+
+- **Analysis options using cM**:
+  - `--grid n`: spacing analysis points every _n_ cM
+  - `--steps n`: number of steps between markers
+  - `--markerNames`: use marker names instead of cM in output
+
+- **Output format**: Results are reported using cM values
+
+### What MERLIN Docs Do Not Cover
+
+- How to **convert**:
+  - Physical position (bp) → Genetic position (cM)
+  - rsID → cM
+  - hg19 → hg38
+
+- No support for:
+  - Coordinate system conversions
+  - Liftover methods
+  - Interpolation tools
+  - Working across reference genome builds
+
+**Conclusion**:  
+The burden is on the user to supply pre-annotated maps with cM values. MERLIN does not perform coordinate conversion or interpolation.
+
+## How Beagle Maps Were Created
+
+- Origin: **HapMap2 genetic map**
+- Lifted from hg19 to hg38 using rsID → bp mapping
+- Interpolated cM values for GRCh38-aligned SNPs in the Beagle panel
+- Common rsIDs preserved; well-annotated
+- Used for imputation and phasing workflows (UK Biobank, HRC)
+
+Widely trusted, reproducible  
+Minimal effort required for MERLIN
+
+## Alternative Genetic Maps
+
+### SHAPEIT5 `genetic_maps.b38.tar.gz`
+
+- Format:
+  ```text
+  position   rate(cM/Mb)   map(cM)
+  ```
+- No rsIDs
+- Requires interpolation
+- Used by SHAPEIT5 for phasing
+- Accurate for cM estimates (sourced from HapMap2 or 1000 Genomes)
+
+**Use when:** You have only bp and want to estimate cM  
+**Not ideal** for building `.map` from rsID directly
+
+### Eagle `genetic_map_hg38_withX.txt.gz`
+
+- Format is similar to SHAPEIT5
+- Derived from HapMap2, lifted to hg38
+- No rsIDs
+- Requires interpolation
+
+**Use when:** You need dense cM maps for imputation or want more custom control
+
+### deCODE / Halldorsson et al. 2019
+
+- High-resolution recombination map from 150K Icelandic individuals
+- Download: [genetic_map_GRCh38.tar.gz](https://biodata.monash.edu/GRCh38/genetic_map_GRCh38.tar.gz)
+- No rsIDs
+- Requires interpolation
+- More useful for population genetics than MERLIN prep
+
+## When You Must Interpolate
+
+If:
+- A variant is **not found** in the Beagle `.map`
+- You have only **bp positions** with no rsID match
+
+Then:
+- Use SHAPEIT5 or Eagle map for interpolation
+- Estimate cM from surrounding bp–cM pairs using:
+
+```math
+cM = cM₁ + ( (bp - bp₁) / (bp₂ - bp₁) ) × (cM₂ - cM₁)
+```
+
+## Tips for Workflow
+
+- **Prefer direct rsID → cM matching** when possible
+- **Keep a fallback interpolation script** ready (Python or R)
+- **Document which map was used** in `.map` file metadata for reproducibility
+- **Monitor Mendelian error rates** - high rates may indicate data quality issues
+- **Consider variant density** - too many variants can slow MERLIN analysis
+- **Validate chromosome X handling** - ensure proper sex-specific filtering
+- **Implement age-dependent penetrance** for late-onset diseases
+- **Use multiple software packages** for linkage analysis validation
+
+## Common Pitfalls
+
+1. **Missing rsIDs**: Ensure annotation pipeline preserves rsIDs
+2. **Coordinate mismatches**: Verify hg38 consistency throughout pipeline
+3. **Memory issues**: Large WGS datasets may require chunked processing
+4. **Threading conflicts**: Monitor resource usage in parallel processing
+5. **File format errors**: Validate VCF/PLINK format compatibility
+6. **Pedigree complexity**: Monitor bit count for MERLIN limitations
+7. **Age-dependent penetrance**: Account for variable age of onset
+8. **LD filtering**: Balance between variant density and computational efficiency
+
+## References
+
+- Abecasis GR, et al. [MERLIN Software](https://csg.sph.umich.edu/abecasis/Merlin/)
+- [Beagle Genetic Maps](https://bochet.gcc.biostat.washington.edu/beagle/genetic_maps/)
+- SHAPEIT5 GitHub: [https://github.com/odelaneau/shapeit5](https://github.com/odelaneau/shapeit5)
+- Eagle Genetic Maps: [https://data.broadinstitute.org/alkesgroup/Eagle/](https://data.broadinstitute.org/alkesgroup/Eagle/)
+- Halldorsson et al. (2019) Nature Genetics: [Characterizing sequence variants using population-scale sequencing](https://doi.org/10.1038/s41588-019-0461-6)
+- [genetic_map_GRCh38.tar.gz – biodata.monash.edu](https://biodata.monash.edu/GRCh38/genetic_map_GRCh38.tar.gz)
+- [BCFtools Documentation](https://samtools.github.io/bcftools/)
+- [PLINK Documentation](https://www.cog-genomics.org/plink/)
+- [echtvar Documentation](https://github.com/brentp/echtvar)
+- Puigdevall et al. (2018) Journal of Medical Genetics: [Genetic linkage analysis of a large family identifies FIGN as a candidate modulator of reduced penetrance in heritable pulmonary arterial hypertension](https://doi.org/10.1136/jmedgenet-2018-105669)
+
+## Final Recommendations
+
+| Option | Best For | rsIDs | Interpolation Needed? | Format |
+|--------|----------|--------|-------------------------|--------|
+| **Beagle GRCh38** | MERLIN `.map` with rsIDs | Yes | No | PLINK `.map` |
+| SHAPEIT5 `.b38.gmap.gz` | Phasing / dense estimates | No | Yes | position-only |
+| Eagle `hg38_withX` | Interpolation tasks | No | Yes | position-only |
+| deCODE GRCh38 | Research-grade recombination | No | Yes | position-only |
+
+
+## Tips for Workflow
+
+- **Prefer direct rsID → cM matching** when possible
+- **Keep a fallback interpolation script** ready (Python or R)
+- **Document which map was used** in `.map` file metadata for reproducibility
+- **Monitor Mendelian error rates** - high rates may indicate data quality issues
+- **Consider variant density** - too many variants can slow MERLIN analysis
+- **Validate chromosome X handling** - ensure proper sex-specific filtering
+- **Implement age-dependent penetrance** for late-onset diseases
+- **Use multiple software packages** for linkage analysis validation
+
+## Common Pitfalls
+
+1. **Missing rsIDs**: Ensure annotation pipeline preserves rsIDs
+2. **Coordinate mismatches**: Verify hg38 consistency throughout pipeline
+3. **Memory issues**: Large WGS datasets may require chunked processing
+4. **Threading conflicts**: Monitor resource usage in parallel processing
+5. **File format errors**: Validate VCF/PLINK format compatibility
+6. **Pedigree complexity**: Monitor bit count for MERLIN limitations
+7. **Age-dependent penetrance**: Account for variable age of onset
+8. **LD filtering**: Balance between variant density and computational efficiency
+
+## References
+
+- Abecasis GR, et al. [MERLIN Software](https://csg.sph.umich.edu/abecasis/Merlin/)
+- [Beagle Genetic Maps](https://bochet.gcc.biostat.washington.edu/beagle/genetic_maps/)
+- SHAPEIT5 GitHub: [https://github.com/odelaneau/shapeit5](https://github.com/odelaneau/shapeit5)
+- Eagle Genetic Maps: [https://data.broadinstitute.org/alkesgroup/Eagle/](https://data.broadinstitute.org/alkesgroup/Eagle/)
+- Halldorsson et al. (2019) Nature Genetics: [Characterizing sequence variants using population-scale sequencing](https://doi.org/10.1038/s41588-019-0461-6)
+- [genetic_map_GRCh38.tar.gz – biodata.monash.edu](https://biodata.monash.edu/GRCh38/genetic_map_GRCh38.tar.gz)
+- [BCFtools Documentation](https://samtools.github.io/bcftools/)
+- [PLINK Documentation](https://www.cog-genomics.org/plink/)
+- [echtvar Documentation](https://github.com/brentp/echtvar)
+- Puigdevall et al. (2018) Journal of Medical Genetics: [Genetic linkage analysis of a large family identifies FIGN as a candidate modulator of reduced penetrance in heritable pulmonary arterial hypertension](https://doi.org/10.1136/jmedgenet-2018-105669)

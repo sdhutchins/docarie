@@ -1,0 +1,36 @@
+---
+title: "IBD and Kinship Estimation"
+---
+Since there are a finite number of alleles at most genetic loci, individuals may exhibit the same genotype at a particular locus but, nevertheless, carry distinct chromosomes. Information on allele frequencies and neighbouring markers can be used to estimate the probability that any two individuals actually inherited the same chromosome from founders in the pedigree.
+
+MERLIN can estimate the number of alleles shared identical-by-descent among relatives in a pedigree, and summarize this information either as probabilities that a given pair will share 0, 1 or 2 alleles IBD or as the kinship coefficient between each pair at a particular locus.
+
+Some programs require IBD estimates as input for their analysis. For example, [QTDT](https://www.sph.umich.edu/csg/abecasis/QTDT/) tests for association using all phenotypes from related individuals and requires IBD matrices to distinguish between linkage and association.
+
+For this example, we will use a simulated data set that you will find in the examples subdirectory of the MERLIN distribution or in the [download page](../download/).
+
+The data set includes 50 families, each with 4 siblings, genotyped for 3 SNP markers and is also used in the [QTDT tutorial](https://www.sph.umich.edu/csg/abecasis/QTDT/tour/). We will use MERLIN to estimate IBD for this data set in a format that is ready for use by QTDT.
+
+You should already be familiar with [input file formats](input_files.qmd). The data consists of a pedigree file (*sibs.ped*), which specifies individual relationships, genotypes and phenotypes. In addition, a map file (*sibs.map*) provides marker locations and a data file (*sibs.dat*) describes the data set.
+
+As usual, it is always a good idea to check contents of input files by running pedstats:
+
+```bash
+pedstats -d sibs.dat -p sibs.ped
+```
+
+To calculate pairwise IBD matrices, we will use the **--ibd** command line option. Since MERLIN labels all results with chromosomal positions by default, we will also use the **--markerNames** option to request that output include the marker names which are required by QTDT. So, the command:
+
+```bash
+merlin -d sibs.dat -p sibs.ped -m sibs.map --markerNames --ibd
+```
+
+Will estimate IBD coefficients for all relative pairs and produce a *merlin.ibd* file ready for use by QTDT. Each line in *merlin.ibd* begins with a family identifier followed by identifiers for two individuals. This is followed by marker names and probabilities for sharing 0, 1 and 2 alleles IBD.
+
+Commonly used options when estimating IBD coefficients include **--singlepoint** (which considers each marker independently) and **--steps** *n* (which requests analysis at *n* positions between markers) or the **--grid** *k* (which requests analysis every *k* cM along the chromosome).
+
+Congratulations! You have reached the end of the Merlin tutorial. You may wish to review previous sections on [input file formats](input_files.qmd), [linkage analysis](linkage.qmd), [error detection](error.qmd), [simulation](simulation.qmd) or [haplotyping](haplotyping.qmd).
+
+---
+
+[University of Michigan](http://www.umich.edu/) | [School of Public Health](http://www.sph.umich.edu/) | [Abecasis Lab](http://csg-old.sph.umich.edu/abecasis/)

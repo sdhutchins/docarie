@@ -1,0 +1,162 @@
+---
+title: "QTL Regression Analysis"
+---
+
+Quantitative trait linkage analyses examine whether a chromosomal region is responsible for some of the variation in a trait of interest. Here, we will describe how fast quantitative trait regression analyses can be carried out using MERLIN.
+
+### Data for this exercise
+
+For this example, we will use a simulated data set that you will find in the examples subdirectory of the MERLIN distribution or in the [download page](../download/).
+
+The dataset consists of a simulated 5-cM scan of chromosome 24 in 200 sib-pair families and is organized into [3 files](input_files.html), a data file (*asp.dat*), a pedigree file (*asp.ped*) and a map file (*asp.map*). A quantitative trait has been scored for each offspring.
+
+The recommended first step in any analysis is to verify that input files are being interpreted correctly. So let's start by running pedstats... Pedstats requires an input data file (**-d** parameter) and pedigree file (**-p** parameter):
+
+```bash
+pedstats -d asp.dat -p asp.ped
+```
+
+By examining the abbreviated pedstats output below, you should be able to confirm that there are 200 pedigrees, each with 4 individuals (two siblings and their parents). The pedigree includes a quantitative trait that has been measured on all 400 offspring but none of the founders.
+
+```txt
+Pedigree Statistics
+(c) 1999-2001 Goncalo Abecasis
+
+The following parameters are in effect:
+            QTDT Pedigree File :         asp.ped (-pname)
+                QTDT Data File :         asp.dat (-dname)
+            Missing Value Code :         -99.999 (-xname)
+
+PEDIGREE STRUCTURE
+==================
+          Individuals: 800 (400 founders, 400 nonfounders)
+             Families: 200
+ Average Family Sizes: 4.00
+  Average Generations: 2.00
+
+QUANTITATIVE TRAIT STATISTICS
+=============================
+                   [Phenotypes]      [Founders]       Mean        Var
+          trait      400  50.0%        0   0.0%      0.021      1.496
+
+AFFECTION STATISTICS
+====================
+                  [Diagnostics]      [Founders] Prevalence
+      affection      400  50.0%        0   0.0%     100.0%
+          Total      400  50.0%        0   0.0%
+
+MARKER GENOTYPE STATISTICS
+==========================
+                    [Genotypes]      [Founders]     Hetero
+           MRK1      400  50.0%        0   0.0%      72.8%
+           MRK2      400  50.0%        0   0.0%      73.2%
+        (...statistics for other markers would appear here...)
+          Total     8000  50.0%        0   0.0%      74.1%
+```
+
+The most popular method of quantitative trait linkage is the Haseman-Elston (1972) procedure where squared trait differences for sib-pairs are regressed on [IBD allele-sharing](ibd.html). If a gene in the region being investigate influences trait levels, sib-pairs who share more alleles are expected to show similar phenotypes and, therefore, smaller squared trait differences.
+
+### Pedigree-Wide Regression Analysis
+
+The flexibility of the method of Haseman and Elston has lead many authors to propose enhancements and extensions. [Sham et al. (2002)](../../publications/12111667.html) have recently described a regression-based procedure for linkage analysis that uses trait-squared sums and differences to predict IBD sharing between any non-inbred relative pairs. This method is implemented in the MERLIN-REGRESS program, included in the merlin distribution. The method of Sham et al. can be applied to selected samples but requires specification of the trait distribution parameters in the general population.
+
+### Analysing a single trait
+
+To run MERLIN-REGRESS, we will need to specify the input data(**-d** parameter), pedigree (**-p** parameter) and map (**-m** parameter) file names. In addition, we will need to specify the trait distribution parameters (--mean, --variance and --heritability options). In this case, we will assume that the trait of interest has mean=0.0, variance=1.5 and heritability=80% in the general population:
+
+```bash
+merlin-regress -d asp.dat -p asp.ped -m asp.map --mean 0.0 --var 1.5 --her 0.8
+```
+
+After running the command, you should first see the familiar MERLIN banner and a summary of currently selected options:
+
+```txt
+MERLIN 0.9.1 - (c) 2000-2002 Goncalo Abecasis
+
+The following parameters are in effect:
+                     Data File :         asp.dat (-dname)
+                 Pedigree File :         asp.ped (-pname)
+            Missing Value Code :         -99.999 (-xname)
+                      Map File :         asp.map (-mname)
+            Allele Frequencies : ALL INDIVIDUALS (-f[a|e|f|file])
+                   Random Seed :          123456 (-r9999)
+
+Regression Analysis Options
+     Trait Model : --mean [0.00], --variance [1.50], --heritability [0.80]
+   Recombination : --zero, --one, --two, --three, --singlepoint
+       Positions : --steps, --maxStep, --minStep, --grid, --start, --stop
+          Limits : --bits [24], --megabytes, --minutes
+          Output : --quiet, --markerNames
+          Others : --simulate, --swap, --rankFamilies
+
+Estimating allele frequencies... [using all genotypes]
+   MRK1 MRK2 MRK3 MRK4 MRK5 MRK6 MRK7 MRK8 MRK9 MRK10 MRK11 MRK12 MRK13 MRK14
+   MRK15 MRK16 MRK17 MRK18 MRK19 MRK20
+```
+
+After a few moments, you should see analysis results at each location:
+
+```
+Pedigree-Wide Regression Analysis (Trait: trait)
+======================================================
+       Position      H2   Stdev    Info     LOD  pvalue
+          0.000   0.406   0.192   64.8%   0.970    0.02
+          5.268   0.526   0.183   71.1%   1.792   0.002
+         10.536   0.598   0.182   72.1%   2.343  0.0005
+         15.804   0.733   0.182   72.1%   3.520 0.00003
+         21.072   0.586   0.182   72.2%   2.255  0.0006
+         26.340   0.596   0.190   66.0%   2.135  0.0009
+         31.608   0.535   0.189   67.0%   1.744   0.002
+         36.876   0.522   0.184   70.6%   1.752   0.002
+         42.144   0.414   0.181   73.0%   1.137   0.011
+         47.412   0.295   0.175   77.5%   0.614    0.05
+(... results continue at other locations ...)
+```
+
+Successive columns indicate position along the chromosome (in CM), estimated locus specific heritability, standard deviation for the estimate of locus specific heritability, proportion of linkage information extracted at this location (100% information corresponds to the smallest possible confidence interval for estimated effect size), LOD score and corresponding p-value. In this case, linkage peaks at position 15.8 with an estimated locus specific heritability of 73.3% and a LOD score of 3.52 (probability 0.00003).
+
+### Estimating family informativeness
+
+Another useful option in MERLIN-REGRESS is the ability to quantify the expected amount of linkage information in each family. This can be useful when focusing genotyping efforts (for example, by genotyping the most informative families first) or identifying problematic outliers (extreme outliers will lead to some families with very large weights which can reduce effective sample size in linkage analyses).
+
+To estimate family informativeness, specify the trait distribution in the population (by specifying it's mean, variance and heritability) and use the --rankFamilies option. Using the example input files the command line would read:
+
+```bash
+merlin-regress -d asp.dat -p asp.ped --mean 0 --var 1.5 --her 0.8 --rank
+```
+
+Running this command would produce the familiar MERLIN output screen followed by a table looking like the one below:
+
+```txt
+Family Informativeness
+======================
+         Family           Trait  People  Phenos   Pairs    Info  ELOD20
+              1           trait       4       2       1   0.099   0.001
+              2           trait       4       2       1   0.025   0.000
+              3           trait       4       2       1   1.989   0.017
+              4           trait       4       2       1   0.269   0.002
+              5           trait       4       2       1   0.327   0.003
+(... additional rows follow for other families)
+```
+
+Each row indicates the family and trait of interest, followed by number of individuals and phenotypes in each family, the number of phenotyped relative pairs and the relative informativeness of the family. The final column indicates the expected LOD score for a region with a locus specific heritability of 20% when a fully informative marker is typed. In this case family 3 seems particularly informative (you can try and find out why by examining the phenotypes for each individual in the *asp.ped* pedigree file).
+
+Expected LOD scores are proportional to the squared locus specific heritability. To calculate expected LOD scores for a different effect size, simply multiply the expected LOD score by (*heritability*/20)^2, where H2 denotes your desired effect size and ^2 denotes the square operator. For example, for an effect size of 40%, you should multiply each expected LOD score by 4.
+
+### Comparing trait models and analysing multiple traits
+
+Often multiple quantitative traits may be available in a particular dataset. Each of these traits is likely to have a distinct mean, variance and heritability in the population. The **-t** *models_file* specifies the name of a text file listing analysis models, one for each trait. Using a models table allows distinct models to be specified for each phenotype in the pedigree file.
+
+A models table includes four columns. The first column indicates the trait name and is followed by columns indicating the trait mean, variance and heritability. Optionally, a fifth column can be included with a label for each model. Here is an example:
+
+```txt
+<sample regression models file>
+TRAIT                 MEAN          VARIANCE          HERITABILITY   LABEL
+Weight_Kilograms      75            10                0.63           metric_analysis
+Weight_Pounds         160           40                0.63           imperial_analysis
+<end of sample regression models file>
+```
+
+### Where to go next?
+
+Now that you know how to carry out a pedigree-wide regression analysis using MERLIN you might want to find out estimate empirical p-values using [simulation](simulation.html), or perhaps explore the sections on [error detection](error.html), [linkage analysis](linkage.html), [haplotyping](haplotyping.html) or [ibd estimation](ibd.html).

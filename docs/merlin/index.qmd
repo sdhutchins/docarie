@@ -1,0 +1,36 @@
+---
+title: "MERLIN Tutorial"
+subtitle: "A guided tour through MERLIN features"
+keywords: ["bioinformatics", "documentation", "MERLIN", "genetics", "tutorials"]
+author: "Shaurita D. Hutchins"
+date: last-modified
+toc-location: right
+---
+These pages provide a guided tour through the main features and quirks of MERLIN. The section on [input file formats](input_files.qmd) is recommended for all users. The other sections will depend on the focus of your research.
+
+This has been adapted from the [merlin tutorial website](https://csg.sph.umich.edu/abecasis/Merlin/tour/).
+
+## Getting Started
+
+I recommend starting with the [Input Files](input_files.qmd) section to understand the data formats used by MERLIN, then moving to the specific analysis type that matches your research goals.
+
+## Available Tutorials
+
+Merlin can be used for:
+
+- **[Parametric Linkage Analysis](parametric.qmd)** - Traditional parametric linkage analysis
+- **[Non-parametric Linkage Analysis](linkage.qmd)** - Model-free linkage analysis methods
+- **[Regression-based Linkage Analysis](regress.qmd)** - Regression approaches for linkage
+- **[Association Analysis](assoc.qmd)** - SNP association testing for quantitative traits
+- **[IBD and Kinship Estimation](ibd.qmd)** - Identity by descent and kinship calculations
+- **[Haplotyping](haplotyping.qmd)** - Haplotype reconstruction and analysis
+- **[Error Detection](error.qmd)** - Identifying and handling genotyping errors
+- **[Simulation](simulation.qmd)** - Generating simulated genetic data
+- **[Linkage Disequilibrium](disequilibrium.qmd)** - Accommodating LD between markers
+- **[WGS Preprocessing and Genetic Maps](notes.qmd)** - Comprehensive guide for WGS data preparation and genetic map integration
+
+## Additonal Links
+
+---
+
+[University of Michigan](http://www.umich.edu/) | [School of Public Health](http://www.sph.umich.edu/) | [Abecasis Lab](http://csg-old.sph.umich.edu/abecasis/) 

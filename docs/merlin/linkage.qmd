@@ -1,0 +1,150 @@
+---
+title: "Linkage Analysis"
+---
+
+Linkage analysis tests for co-segregation of a chromosomal region and a trait of interest. In this section, we will walk through a basic non-parametric and variance components linkage analysis using MERLIN.
+
+For this example, we will use a simulated data set that you will find in the examples subdirectory of the MERLIN distribution or in the [download page](../download/).
+
+The dataset consists of a simulated 5-cM scan of chromosome 24 in 200 affected sib-pair families and is organized into 3 files, a data file (*asp.dat*), a pedigree file (*asp.ped*) and a map file (*asp.map*). An overview of MERLIN input files is available [elsewhere](input_files.qmd).
+
+The recommended first step in any analysis is to verify that input files are being interpreted correctly. So let's start by running pedstats... Pedstats requires an input data file (**-d** parameter) and pedigree file (**-p** parameter):
+
+```bash
+pedstats -d asp.dat -p asp.ped
+```
+
+By examining the abbreviated pedstats output below, you should be able to confirm that there are 200 pedigrees, each with 4 individuals (two affected siblings and their parents). Among phenotyped individuals, the prevalence of the disease is 100% (there are no unaffecteds in the sample) and the pedigree also includes a quantitative trait. In addition there are no phenotyped or genotyped founders.
+
+```txt
+Pedigree Statistics
+(c) 1999-2001 Goncalo Abecasis
+
+The following parameters are in effect:
+            QTDT Pedigree File :         asp.ped (-pname)
+                QTDT Data File :         asp.dat (-dname)
+            Missing Value Code :         -99.999 (-xname)
+
+PEDIGREE STRUCTURE
+==================
+          Individuals: 800 (400 founders, 400 nonfounders)
+             Families: 200
+ Average Family Sizes: 4.00
+  Average Generations: 2.00
+
+QUANTITATIVE TRAIT STATISTICS
+=============================
+                   [Phenotypes]      [Founders]       Mean        Var
+          trait      400  50.0%        0   0.0%      0.021      1.496
+
+AFFECTION STATISTICS
+====================
+                  [Diagnostics]      [Founders] Prevalence
+      affection      400  50.0%        0   0.0%     100.0%
+          Total      400  50.0%        0   0.0%
+
+MARKER GENOTYPE STATISTICS
+==========================
+                    [Genotypes]      [Founders]     Hetero
+           MRK1      400  50.0%        0   0.0%      72.8%
+           MRK2      400  50.0%        0   0.0%      73.2%
+        (...statistics for other markers would appear here...)
+          Total     8000  50.0%        0   0.0%      74.1%
+```
+
+Everything checks out, so let's run merlin! We will need to specify an input data file (**-d** parameter), pedigree file (**-p** parameter) and map file (**-m** parameter). In addition, we need to request a non-parametric linkage analysis. In this case, we will request calculation of both the Whittemore and Halpern NPL pairs (**--pairs**) and NPL all (**--npl**) statistics:
+
+```bash
+merlin -d asp.dat -p asp.ped -m asp.map --pairs --npl
+```
+
+After running the command, you should first see the MERLIN banner and a summary of currently selected options:
+
+```txt
+MERLIN 0.8.4 - (c) 2000-2001 Goncalo Abecasis
+
+The following parameters are in effect:
+                     Data File :         asp.dat (-dname)
+                 Pedigree File :         asp.ped (-pname)
+            Missing Value Code :         -99.999 (-xname)
+                      Map File :         asp.map (-mname)
+            Allele Frequencies : ALL INDIVIDUALS (-f[a|e|f|file])
+            Steps Per Interval :               0 (-i9999)
+                   Random Seed :          123456 (-r9999)
+
+Data Analysis Options
+         General : --error, --ibd, --kinship, --information
+         Linkage : --npl [ON], --pairs [ON], --qtl, --deviates, --vc
+     Haplotyping : --best, --sample, --all, --founders
+   Recombination : --zero, --one, --two, --three, --singlepoint
+          Limits : --bits [24], --megabytes
+          Output : --quiet, --markerNames
+      Simulation : --simulate, --save
+      Additional : --simwalk2, --matrices, --swap
+```
+
+Notice that allele frequencies were estimated by counting among all individuals (the default). Alternatively, one could calculate allele frequencies among founders only (**-ff**), request equal allele frequencies (**-fe**) or use an [allele frequency file](input_files.qmd#freqfile) with custom frequencies.
+
+After a few moments, you should see analysis results at each location:
+
+```txt
+Phenotype: affection [ALL] (200 families)
+============================================================
+                 Pos   Zmean  pvalue    delta    LOD  pvalue
+                 min  -20.00     1.0   -0.707 -60.21     1.0
+                 max   20.00 0.00000    0.707  60.21 0.00000
+               0.000    0.96     0.2    0.092   0.27    0.13
+               5.268    1.39    0.08    0.126   0.54    0.06
+              10.536    1.27    0.10    0.110   0.43    0.08
+              15.804    1.43    0.08    0.128   0.56    0.05
+              21.072    0.88     0.2    0.083   0.22     0.2
+              26.340    1.37    0.08    0.130   0.55    0.06
+              31.608    1.53    0.06    0.151   0.71    0.04
+              36.876    2.18   0.014    0.197   1.32   0.007
+              42.144    2.60   0.005    0.218   1.75   0.002
+              47.412    3.00  0.0014    0.251   2.33  0.0005
+              52.680    3.43  0.0003    0.286   3.05 0.00009
+            (... results continue at other locations...)
+```
+
+The first two lines indicate the maximum possible scores for this dataset. These are followed by analysis results at each location (cM position, Zscore, p-value assuming normal approximation, Kong and Cox delta, K&C LOD score and K&C p-value). You will notice that results are identical for the NPL all and pairs statistics -- this is always the case for families with a single affected sib-pair! Linkage peaks at location 52.68 with a Zscore of 3.43 (asymptotic p-value of 0.0003), corresponding to a Kong and Cox LOD score of 3.05 with probability 0.00009.
+
+Two Merlin options can be helpful when sorting through large masses of linkage results. These two options are the --pdf option, which generates a simple graphical summary of your linkage curves, and the --tabulate option, which generates a tab-delimited file summarizing all the results for easy analysis in other programs.
+
+Other commonly used linkage analysis options include requesting output with marker names, instead of cM positions (**--markerNames** option) and requesting analysis between markers (**--steps** *n* for *n* steps per interval) or along a grid of equally spaced locations along the chromosome (**--grid** *n* for an n-cM grid). Try them out! For example...
+
+```bash
+merlin -d asp.dat -p asp.ped -m asp.map --steps 4 --pairs --markerNames
+```
+
+... would calculate the NPL pairs statistic at 4 locations between consecutive markers and use marker names in the output.
+
+**TIP:** The standard non-parametric linkage analysis carried out by Merlin uses the Kong and Cox (1997) *linear model* to evaluate the evidence for linkage. This model is designed to identify small increases in allele sharing spread across a large number of families -- this is what one usually expects in a complex disease. If you are searching for a large increase in allele sharing in a small number of families, you can select the Kong and Cox (1997) *exponential model* by adding the **--exp** option to your command line, after the **--npl** or **--pairs** options. This alternative model is more computationally intensive and requires more memory, but provides a better linkage test if you expect a large increase in allele sharing among affected individuals.
+
+To carry out a variance components linkage analysis on the same data set, we will use the --vc option. If you are using a peculiar value, such as 1234 or -99.999 to represent missing values in your data, remember to use the **-x** *peculiar_value* option to tell MERLIN about it in all quantitative trait analyses. In the asp pedigree, missing values have been replaced by *x*. Let's try a variance components analysis:
+
+```bash
+merlin -d asp.dat -p asp.ped -m asp.map --vc
+```
+
+In the output, you will see the estimated sample heritability for each phenotype (in this case 86%) followed by estimates of the genetic effect and LOD scores at each marker location:
+
+```
+Phenotype: trait [VC] (200 families, h2 = 86.74%)
+=====================================================
+            Position      H2    ChiSq     LOD  pvalue
+               0.000   40.95%    5.21    1.13   0.011
+               5.268   51.42%    9.88    2.15  0.0008
+              10.536   56.26%   13.01    2.82  0.0002
+              15.804   65.40%   19.63    4.26 0.00000
+              21.072   60.89%   15.36    3.34 0.00004
+            (... results continue at other locations...)
+```
+
+In this case, linkage peaks at position 15.8 cM. You could identify which families are contributing the most to these linkage signals using the --perFamily option, which generates an additional file tabulating the contribution of each family to the overall LOD score (for non-parametric analysis this partial contribution will be labelled pLOD).
+
+Since this is a selected sample, you might want to check out the [simulation section](simulation.qmd) to find out how to conduct gene-dropping simulations that could be used, for example, to estimate empirical p-values. Or proceed to the [error detection](error.qmd) (improves power!), [haplotyping](haplotyping.qmd) or [ibd estimation](ibd.qmd) sections.
+
+---
+
+[University of Michigan](http://www.umich.edu/) | [School of Public Health](http://www.sph.umich.edu/) | [Abecasis Lab](http://csg-old.sph.umich.edu/abecasis/)

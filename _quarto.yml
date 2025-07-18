@@ -1,0 +1,72 @@
+project:
+  type: website
+  output-dir: _site
+
+website:
+  announcement: 
+    icon: exclamation-triangle
+    dismissable: true
+    content: "**Alert** - This site is under construction!!!"
+    type: primary
+    position: below-navbar
+  title: "Docarie"
+  description: "Documentation collection for bioinformatics tools"
+  navbar:
+    left:
+      - href: index.qmd
+        text: Home
+      - href: docs/merlin/
+        text: Merlin
+    right:
+      - icon: github
+        href: https://github.com/sdhutchins/docarie
+  page-footer: ""
+  search: true
+  sidebar:
+    - title: "MERLIN Tutorials"
+      style: floating
+      collapse-level: 1
+      contents:
+        - text: "Overview"
+          href: docs/merlin/index.qmd
+        - text: "Input Files"
+          href: docs/merlin/input_files.qmd
+        - text: "Parametric Linkage"
+          href: docs/merlin/parametric.qmd
+        - text: "Non-parametric Linkage"
+          href: docs/merlin/linkage.qmd
+        - text: "Regression Linkage"
+          href: docs/merlin/regress.qmd
+        - text: "Association Analysis"
+          href: docs/merlin/assoc.qmd
+        - text: "IBD & Kinship"
+          href: docs/merlin/ibd.qmd
+        - text: "Haplotyping"
+          href: docs/merlin/haplotyping.qmd
+        - text: "Error Detection"
+          href: docs/merlin/error.qmd
+        - text: "Simulation"
+          href: docs/merlin/simulation.qmd
+        - text: "Linkage Disequilibrium"
+          href: docs/merlin/disequilibrium.qmd
+        - text: "WGS Preprocessing"
+          href: docs/merlin/notes.qmd
+
+format:
+  html:
+    theme: litera
+    toc: true
+    toc-depth: 3
+    code-fold: true
+    code-tools: true
+    code-copy: true
+    code-link: true
+    highlight-style: github
+    google-analytics: G-XXXXXXXXXX
+    viewport: width=device-width, initial-scale=1
+    css: assets/styles.css
+    grid:
+      sidebar-width: 250px
+      body-width: 900px
+      margin-width: 300px
+ 

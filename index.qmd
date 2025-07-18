@@ -1,0 +1,29 @@
+---
+title: "Docarie"
+subtitle: "Documentation Collection"
+toc-location: left
+---
+
+Docarie is a tasteful assortment of accessible and comprehensive docs
+
+Docarie provides comprehensive guides, tutorials, and reference materials to help researchers and developers work effectively with various computational biology tools.
+
+## Available Documentation
+
+### [Merlin Documentation](docs/merlin/)
+
+Comprehensive tutorials and guides for the MERLIN software package covering association analysis, linkage 
+analysis, IBD and kinship estimation, haplotyping, error detection, simulation, and input file formats.
+
+## Getting Started
+
+Each tool section contains:
+
+- **Tutorials** - Step-by-step guides for common analyses
+- **Reference Materials** - Detailed documentation of features and options
+- **Examples** - Sample data and command-line examples
+- **Notes** - Tips and recommendations for optimal results
+
+---
+
+*Docarie - A tasteful assortment of accessible and comprehensive docs.* 

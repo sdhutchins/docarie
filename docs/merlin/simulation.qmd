@@ -1,0 +1,91 @@
+---
+title: "Simulation"
+---
+
+When interpreting results for pedigree analysis, it is extremely helpful to know how often a similar result might arise by chance. For example, in a linkage analysis it may be helpful to know how many peaks of similar height are expected conditional on the set of phenotypes being analysed and the available marker map. When investigating suspicious genotypes, it is important to characterize the false-positive rate for error detection procedures.
+
+MERLIN has the ability to perform gene dropping simulations which replace input data with simulated chromosomes conditional on family structure and actual marker spacings and allele frequencies, as well as missing data patterns. The procedure for generating simulated data is described in the [reference section](../reference/simulation.html).
+
+For this example, we will use a data set from the examples subdirectory of the MERLIN distribution as input. You can also find the example data in the [download page](../download/).
+
+## Estimating false positive rates for error detection
+
+In the [error detection tutorial](error.html), we identified 7 pairs of unlikely genotypes in a 20 marker, 5-cM scan, of 200 sib-pairs, corresponding to 8,000 total genotypes. The data is organized into three files, a pedigree file summarizing genotypes and relationships (*error.ped*), a data file describing the contents of the pedigree (*error.dat*) and map file providing marker locations (*error.map*).
+
+To review a descriptive summary of the dataset, you could run pedstats:
+
+```bash
+pedstats -d error.dat -p error.ped
+```
+
+To review the original set of unlikely genotypes, you could use MERLIN's automated error analysis:
+
+```bash
+merlin -d error.dat -m error.map -p error.ped --error
+```
+
+To estimate false positive rates, we will request that MERLIN analyse a simulated data set with identical allele frequencies and marker spacing by using the **--simulate** command line option. Try it out!
+
+```bash
+merlin -d error.dat -m error.map -p error.ped --error --simulate
+```
+
+You should first see the MERLIN start-up screen and summary of selected options. Note that the options *--error* and *--simulate* are selected. Note also that the current random seed is 123456. This seed indicates which simulated replicate will be used, and selecting a different seed produces an alternative simulated data set.
+
+```txt
+MERLIN 0.8.4 - (c) 2000-2001 Goncalo Abecasis
+
+The following parameters are in effect:
+                     Data File :       error.dat (-dname)
+                 Pedigree File :       error.ped (-pname)
+            Missing Value Code :         -99.999 (-xname)
+                      Map File :         asp.map (-mname)
+            Allele Frequencies : ALL INDIVIDUALS (-f[a|e|f|file])
+            Steps Per Interval :               0 (-i9999)
+                   Random Seed :          123456 (-r9999)
+
+Data Analysis Options
+         General : --error [ON], --ibd, --kinship, --information
+         Linkage : --npl, --pairs, --qtl, --deviates, --vc
+     Haplotyping : --best, --sample, --all, --founders
+   Recombination : --zero, --one, --two, --three, --singlepoint
+          Limits : --bits [24], --megabytes
+          Output : --quiet, --markerNames
+      Simulation : --simulate [ON], --save
+      Additional : --simwalk2, --matrices, --swap
+```
+
+This start-up screen should be followed by an error detection analysis for the replicate, which should indicate a single pair of unlikely genotypes:
+
+```txt
+Family:    38 - Founders: 2  - Descendants: 2  - Bits: 2
+  MRK6 genotype for individual 3 is unlikely [0.021855]
+  MRK6 genotype for individual 4 is unlikely [0.021855]
+```
+
+::: {.callout-note}
+## Note
+In many newer versions of MERLIN, you may not find any unlikely genotypes in the replicate produced with the default seed.
+This is not a problem, and merely reflects the low false positive rate of the procedure. Continue reading to learn about
+how to use a different seed...
+:::
+
+So MERLIN flags a single pair of unlikely genotypes in this particular replicate... Is this typical of other replicates? There are two ways to investigate the issue further.
+
+One option is to generate additional replicates, one at a time, by repeating the above procedure with a different random seed. To do this, you will need to set the **-r** command line option. The following command repeats the previous analysis but sets the random seed to 1234, thus generating a different set of simulated data:
+
+```bash
+merlin -d error.dat -m error.map -p error.ped --error --simul -r 1234
+```
+
+Another option is to request that MERLIN loop through the simulation procedure multiple times. This option is available through the **--reruns** command line option in newer versions of MERLIN. To analyse 20 simulated datasets, try:
+
+```bash
+merlin -d error.dat -m error.map -p error.ped --error --simul --reruns 20
+```
+
+In either way, it is straight-forward to repeat any MERLIN analysis for simulated chromosomes and estimate false-positive rates for error detection or linkage analysis (note that MERLIN does not change input phenotypes and disease status when conducting simulations).
+
+Although we focused on simulating data under the null hypothesis (that is on simulating random genotypes that are independent of the phenotype and genotype data), Merlin can also simulate quantitative trait loci associated with a specific simulated phenotype. The procedure for these simulations under the alternative hypothesis is sketched out in the [reference section](../reference/simulation.html).
+
+Now that you have seen how to generate simulated replicates, you could proceed to [haplotype analysis](haplotyping.html) or [ibd estimation](ibd.html). If you haven't already done so, you could try the [linkage](linkage.html) or [error detection tutorials](error.html).

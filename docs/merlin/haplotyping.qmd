@@ -1,0 +1,99 @@
+---
+title: "Haplotyping"
+---
+
+Information about gene flow in a pedigree can be used to reconstruct likely haplotypes for families and individuals. In this section we will walk through some simple examples of how Merlin represents estimated haplotypes.
+
+The sample input files used are in the examples subdirectory of the MERLIN distribution and are also available in the [download page](../download/).
+
+The first data set we will consider consists of very simple families, each with two parents and a single offspring genotyped for three SNP markers. The data is organized into three files: a pedigree file (*haplo.ped*), a data file (*haplo.dat*) and a map file (*haplo.map*).
+
+Merlin has three haplotype estimation modes. It can either provide haplotypes corresponding to the most likely pattern of gene flow (**--best** command line option), sample gene flow patterns according to their likelihood (**--sample**) or provide all non-recombinant haplotypes (**--zero --all**). For this example, we will use the first option:
+
+```bash
+merlin -d haplo.dat -p haplo.ped -m haplo.map --best
+```
+
+Estimated haplotypes are in the *merlin.chr* output file. Newer versions of Merlin will also produce a companion *merlin.flow* that summarizes the descent of estimated haplotypes through the pedigree. We will now examine these files in detail.
+
+We will first examine the contents of the *merlin.chr* file. This file lists the two haplotypes for each individual (for non-founders the maternal haplotype is always listed first, followed by the paternal haplotype). The location of recombination events is also indicated (a **|** indicates no recombination event between the current locus and the previous informative locus, a **/** indicates a recombination event in the maternal haplotype, a **\\** indicates a recombination event in the paternal haplotype, a **+** indicates a recombination event in both the maternal and paternal chromosomes, and finally a **:** indicates information about recombination between the current marker and the previous marker is not available.)
+
+By default, haplotypes are listed vertically, with multiple individuals per line (the **--horizontal** command line flag selects a horizontal output format with a single haplotype per line and which can be more convenient for post-processing). Each family in the pedigree is listed in turn.
+
+Let's look through the output! Notice that for the first family, father and child are heterozygous at all markers (and would have an uncertain haplotype without information on their relatives), whereas the mother is homozygous for allele '1' at all loci. Since Merlin considers all individuals jointly, all haplotypes can be resolved.
+
+```txt
+# contents of merlin.chr output file
+
+The first line names the family. In a trio family no
+information on recombination is available, and this family
+is labelled uninformative about recombination.
+FAMILY 1 [Uninformative]
+
+The next header line names individuals. Founders are labelled
+F and non-founders are followed by their parents' names in
+brackets.
+       1 (F)               2 (F)              3 (2,1)
+
+The next lines provide haplotype pairs for each individual. As noted above,
+pairs are separated by a : if there is no information on recombination,
+by a | if they do not recombine, or a /, \, + if they recombine
+in the maternal, paternal or both chromosomes, respectively.
+      2  :  1             1  :  1             1  :  2
+      2  :  1             1  :  1             1  :  2
+      2  :  1             1  :  1             1  :  2
+
+# end of snippet
+```
+
+Output for the next family is similar, but you will notice that one chromosome carries an unknown allele which does not appear in any genotyped individuals. This is labelled by a **?** (question mark).
+
+```txt
+# continuation of merlin.chr output file
+FAMILY 2 [Uninformative]
+
+       1 (F)               2 (F)              3 (2,1)
+      2  :  2             1  :  1             1  :  2
+      2  :  1             1  :  1             1  :  2
+      2  :  ?             1  :  1             1  :  2
+
+# end of snippet
+```
+
+The next family presents a trickier challenge! Although all individuals are genotyped, phase is uncertain for the third marker. Either the father transmits a "2-2-2" chromosome to the child and the mother a "1-1-1" chromosome, or the father transmits a "2-2-1" chromosome and the mother transmits a "1-1-2" chromosome.
+
+Merlin uses a special notation for ambiguous loci which can't be phased using the available information. In this case, the ambiguous phase at the third marker gives us an opportunity to examine this notation. At each locus where some ambiguity exists, each ambiguous allele is labeled with a specific uppercase letter ('A', 'B', 'C', ...) as well as two alternative allele choices. The ambiguity can be resolved by selecting either the first allele listed for all haplotypes in the set, or else by selecting the second allele for all haplotypes in the set.
+
+This is what the output looks like:
+
+```txt
+# continuation of merlin.chr output file
+FAMILY 3 [Uninformative]
+
+       1 (F)               2 (F)              3 (2,1)
+      2  :  2             1  :  1             1  :  2
+      2  :  1             1  :  1             1  :  2
+    2,1A : A1,2         1,2A : A2,1         1,2A : A2,1
+
+# end of snippet
+```
+
+Compared to the sometimes tricky *merlin.chr* file, the *merlin.flow* file is a breeze. The file uses a unique label for each founder haplotype and helps discern descent of founder alleles through the pedigree as well as IBD relationships between individuals. In the example pedigrees, there are only 4 founder haplotypes, labeled "A", "B", "C" and "D". Here is what the Merlin output looks like:
+
+```txt
+# Contents of merlin.flow file
+FAMILY 1 [Uninformative]
+
+       1 (F)               2 (F)              3 (2,1)
+       A : B               C : D               C : A
+       A : B               C : D               C : A
+       A : B               C : D               C : A
+
+# end of snippet
+```
+
+Now that you know how to read Merlin haplotype output, you could look at more complex examples (try to haplotype the data set *gene.dat*, *gene.ped* and *gene.map*) or proceed to other sections of the tutorial. Available topics include [linkage analysis](linkage.qmd), [error detection](error.qmd), [ibd estimation](ibd.qmd) and [simulation](simulation.qmd).
+
+---
+
+[University of Michigan](http://www.umich.edu/) | [School of Public Health](http://www.sph.umich.edu/) | [Abecasis Lab](http://csg-old.sph.umich.edu/abecasis/)
