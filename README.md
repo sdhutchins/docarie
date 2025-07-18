@@ -65,10 +65,7 @@ docarie/
 
 ## Author
 
-**Shaurita D. Hutchins**  
-Bioinformatics Researcher & Developer
-
-- GitHub: [@sdhutchins](https://github.com/sdhutchins)
+**Shaurita D. Hutchins** | Graduate Research Assistant | [@sdhutchins](https://github.com/sdhutchins)
 
 ## Resources
 
