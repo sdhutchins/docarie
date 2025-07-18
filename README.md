@@ -2,7 +2,7 @@
 
 A tasteful assortment of accessible and comprehensive documentation for bioinformatics tools and computational biology workflows.
 
-**Live Site**: [docarie](https://docarie.github.io) *(coming soon)*
+View [docarie](https://www.shauritahutchins.com/docarie/).
 
 ## About
 
