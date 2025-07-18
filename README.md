@@ -10,11 +10,7 @@ Docarie provides comprehensive guides, tutorials, and reference materials to hel
 
 ### Currently Available
 
-- **MERLIN Tutorials** - Complete documentation for genetic linkage analysis, including:
-  - Parametric and non-parametric linkage analysis
-  - Association analysis and IBD estimation  
-  - Haplotyping and error detection
-  - WGS preprocessing and genetic map integration
+- **MERLIN Tutorials** - Complete documentation for genetic linkage analysis, including: parametric and non-parametric linkage analysis, association analysis, IBD estimation, haplotyping, error detection, WGS preprocessing, and genetic map integration.
 
 ## Quick Start
 
