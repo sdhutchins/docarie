@@ -1,0 +1,83 @@
+---
+title: "Lessons Learned"
+---
+
+This document captures lessons learned during debugging of the PAH linkage analysis pipeline, particularly around pedigree handling, MERLIN requirements, and the integration between PLINK and MERLIN.
+
+## MERLIN vs PLINK Pedigree Requirements
+
+I initially assumed that only individuals with direct connections to genotyped individuals could be included in the pedigree due to PLINK limitations.
+
+### The Solution
+**Went back into the Merlin docs and saw that I can indeed add back everyone to the pedigree.** 
+
+Upon further inspection, while plink errors with those extra individuals - merlin will not and does not. Currently rerunning it. Our chat helped lol
+
+### PLINK vs MERLIN Expectations
+
+| Tool | Pedigree Requirements | Missing Genotypes | Untyped Individuals |
+|------|----------------------|-------------------|-------------------|
+| **PLINK** | Expects all individuals to have genotype data | Removes individuals with all missing data | Will error or drop untyped individuals |
+| **MERLIN** | Expects complete pedigree structure | Handles missing genotypes well (`0 0` coding) | **Requires all pedigree members for proper inheritance modeling** |
+
+## Missing Genotypes in MERLIN
+
+- **MERLIN is designed to handle individuals in the pedigree who do not have genotype data**
+- Missing genotypes should be coded as `0 0` (or `X X`, `N N`)
+- **Complete pedigree structure is MORE important than complete genotype data**
+- Untyped individuals provide crucial inheritance context even without genotypes
+
+### Why Include Untyped Individuals?
+
+1. **Inheritance modeling:** MERLIN uses pedigree structure to phase genotypes
+2. **Error detection:** Complete pedigree helps identify Mendelian inconsistencies  
+3. **Linkage power:** More complete pedigrees provide better linkage information
+4. **Prevents disjoint groups:** Missing individuals break pedigree connectivity
+
+## Pedigree Structure Best Practices
+
+### Complete Pedigree Requirements
+
+1. **Include ALL referenced individuals** (both explicit and referenced as parents)
+2. **Create dummy entries** for missing parents with:
+   - Correct family ID
+   - Parent IDs: `0 0` (founders)
+   - Sex: `0` (unknown)
+   - Phenotype: `0` (unknown)
+   - All genotypes: `0 0` (missing)
+
+### AWK Script Logic
+
+```bash
+# Track all individuals mentioned (self, father, mother)
+all_indiv[clean_id] = 1
+if (clean_fa != "0") all_indiv[clean_fa] = 1  # father
+if (clean_mo != "0") all_indiv[clean_mo] = 1  # mother
+
+# Create dummy entries for missing parents
+for (indiv in all_indiv) {
+  if (!(indiv in ped)) {
+    # Missing parent - create dummy entry
+    fam_id = (indiv in family) ? family[indiv] : "14"
+    sex = "0"  # unknown sex for missing parents
+    ped[indiv] = fam_id "\t" indiv "\t0\t0\t" sex "\t0"
+  }
+}
+```
+
+## Error Detection and Cleaning
+
+### MERLIN Workflow
+
+1. **pedstats:** Check pedigree structure (with `--ignoreMendelianErrors`) (we checked for those with plink)
+2. **merlin --error:** Identify problematic genotypes
+3. **pedwipe:** Clean unlikely genotypes (only if errors found)
+4. **merlin linkage:** Final analysis
+
+## Main Notes
+
+1. **Read the documentation carefully** - MERLIN's handling of missing data is more sophisticated than initially assumed
+2. **Complete pedigree structure trumps complete genotype data** for linkage analysis
+3. **PLINK and MERLIN have different requirements** - design pipeline accordingly
+4. **ID cleaning is critical** - special characters cause silent failures
+5. **Path consistency matters** - mixed absolute/relative paths cause confusion

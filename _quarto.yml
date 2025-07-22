@@ -51,6 +51,8 @@ website:
           href: docs/merlin/disequilibrium.qmd
         - text: "WGS Preprocessing"
           href: docs/merlin/notes.qmd
+        - text: "Lessons Learned"
+          href: docs/merlin/lessons-learned.qmd
 
 format:
   html:
